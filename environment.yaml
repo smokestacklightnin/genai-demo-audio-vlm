@@ -1,0 +1,34 @@
+name: AudioVLM
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - accelerate
+  - jupyterlab
+  - numpy
+  - pandas
+  - panel
+  - pytorch=2.4
+  - pytorch-cuda=12.1
+  - cuda-nvcc
+  - torchvision
+  - safetensors
+  - tokenizers
+  - torchtriton
+  - transformers
+  - pillow
+  - einops
+  - bokeh-root-cmd>=0.1.2
+  - jhsingle-native-proxy>=0.8.2
+  - nbconvert
+  - librosa
+  - pip:
+      - bitsandbytes
+      - flash-attn
+      - accelerate
+      - sentencepiece
+  - ipykernel

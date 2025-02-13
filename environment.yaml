@@ -26,9 +26,15 @@ dependencies:
   - jhsingle-native-proxy>=0.8.2
   - nbconvert
   - librosa
+  - pydantic>=2
+  - pydantic-settings>=2
+  - tomlkit
   - pip:
       - bitsandbytes
       - flash-attn
       - accelerate
       - sentencepiece
+      # Required for Aria
+      - protobuf
   - ipykernel
+  - watchfiles

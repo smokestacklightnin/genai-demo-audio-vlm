@@ -1,0 +1,64 @@
+name: Build and push Docker image to Quay.io
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Decide whether to push to Quay
+        id: should-push
+        run: |
+          branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+          echo "branch=$branch" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" != 'pull_request' ]]; then
+            echo "push-to-quay=true" >> $GITHUB_OUTPUT
+            echo This action is being run as the result of a pull request being merged to the main branch or via workflow dispatch. \
+            The Docker image will be pushed to Quay.io.
+          else
+            echo "push-to-quay=false" >> $GITHUB_OUTPUT
+            echo This action is being run as the result of a push. The Docker will be built for the purpose of developer feedback, but \
+            it will not be pushed to Quay.io.
+          fi
+
+          cat "$GITHUB_OUTPUT"
+
+      - name: Login to Quay.io
+        uses: docker/login-action@v3
+        if: steps.should-push.outputs.push-to-quay == 'true'
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_ID }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Compute image tag
+        id: compute-image-tag
+        run: |
+          short_sha=$(git rev-parse --short ${{ github.sha }})
+          if [[ "${{ steps.should-push.outputs.push-to-quay }}" == "true" ]]; then
+            echo "tag=quay.io/${{ secrets.QUAY_ID }}/audiovlm-demo" >> $GITHUB_OUTPUT
+          else
+            echo "tag=audiovlm-demo" >> $GITHUB_OUTPUT
+          fi
+          echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ steps.should-push.outputs.push-to-quay }}
+          file: Dockerfile
+          tags: |
+            ${{ steps.compute-image-tag.outputs.tag }}:${{ steps.compute-image-tag.outputs.short_sha }}
+            ${{ steps.compute-image-tag.outputs.tag }}:latest

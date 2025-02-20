@@ -45,7 +45,11 @@ jobs:
         id: compute-image-tag
         run: |
           short_sha=$(git rev-parse --short ${{ github.sha }})
-          echo "tag=quay.io/${{ secrets.QUAY_ID }}/audiovlm-demo" >> $GITHUB_OUTPUT
+          if [[ "${{ steps.should-push.outputs.push-to-quay }}" == "true" ]]; then
+            echo "tag=quay.io/${{ secrets.QUAY_ID }}/audiovlm-demo" >> $GITHUB_OUTPUT
+          else
+            echo "tag=audiovlm-demo" >> $GITHUB_OUTPUT
+          fi
           echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
 
       - name: Build Docker image

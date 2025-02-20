@@ -3,3 +3,12 @@ name: Build and push Docker image to Quay.io
 on:
   push:
   workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000

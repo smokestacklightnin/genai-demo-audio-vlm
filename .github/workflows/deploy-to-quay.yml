@@ -2,6 +2,7 @@ name: Build and push Docker image to Quay.io
 
 on:
   push:
+    branches: ["main"]
   workflow_dispatch:
   pull_request:
 
@@ -21,7 +22,7 @@ jobs:
         run: |
           branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
           echo "branch=$branch" >> $GITHUB_OUTPUT
-          if [[ ( "${{ github.event.pull_request.merged }}" == true && "$branch" == "main" ) || "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
+          if [[ "${{ github.event_name }}" != 'pull_request' ]]; then
             echo "push-to-quay=true" >> $GITHUB_OUTPUT
             echo This action is being run as the result of a pull request being merged to the main branch or via workflow dispatch. \
             The Docker image will be pushed to Quay.io.

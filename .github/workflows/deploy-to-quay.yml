@@ -1,1 +1,5 @@
 name: Build and push Docker image to Quay.io
+
+on:
+  push:
+  workflow_dispatch:

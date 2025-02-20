@@ -35,3 +35,13 @@ jobs:
           short_sha=$(git rev-parse --short ${{ github.sha }})
           echo "tag=quay.io/${{ secrets.QUAY_ID }}/audiovlm-demo" >> $GITHUB_OUTPUT
           echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          file: Dockerfile
+          tags: |
+            ${{ steps.compute-image-tag.outputs.tag }}:${{ steps.compute-image-tag.outputs.short_sha }}
+            ${{ steps.compute-image-tag.outputs.tag }}:latest

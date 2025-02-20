@@ -12,3 +12,7 @@ jobs:
         image: registry:2
         ports:
           - 5000:5000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4

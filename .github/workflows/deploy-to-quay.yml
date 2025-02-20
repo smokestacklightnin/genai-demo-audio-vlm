@@ -40,7 +40,7 @@ jobs:
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_ID }}
-          password: ${{ secrets.QUAY_PW }}
+          password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Compute image tag
         id: compute-image-tag

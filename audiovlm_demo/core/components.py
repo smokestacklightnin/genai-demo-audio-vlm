@@ -54,7 +54,8 @@ class AudioVLM:
     def __init__(self, *, config: Config, model_store: dict | None = None):
         self.config = config
         model_store_keys = {"Loaded", "History", "Model", "Processor"}
-        self.api_secrets = {}
+        self.api_keys = {}
+        self.api_endpoint_ids = {}
         if model_store is not None:
             if not model_store_keys <= model_store.keys():
                 raise ValueError(
@@ -91,6 +92,11 @@ class AudioVLM:
 
         match model_selection:
             case "Molmo-7B-D-0924":
+                if "molmo" not in self.api_keys:
+                    self.api_keys["molmo"] = os.environ.get("MOLMO_API_KEY")
+                if "molmo" not in self.api_endpoint_ids:
+                    self.api_endpoint_ids["molmo"] = os.environ.get("MOLMO_ENDPOINT_ID")
+
                 # model_id_or_path = self.molmo_model_id
                 # self.model_store["Processor"] = AutoProcessor.from_pretrained(
                 #     model_id_or_path,

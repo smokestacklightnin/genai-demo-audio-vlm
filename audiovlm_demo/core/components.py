@@ -223,26 +223,6 @@ class AudioVLM:
             "Assistant",
         )
 
-        inputs = self.model_store["Processor"].process(images=[image], text=prompt_full)
-
-        inputs = {
-            k: v.to(self.model_store["Model"].device).unsqueeze(0)
-            for k, v in inputs.items()
-        }
-
-        with torch.autocast(device_type="cuda", enabled=True, dtype=torch.bfloat16):
-            output = self.model_store["Model"].generate_from_batch(
-                inputs,
-                GenerationConfig(max_new_tokens=1250, stop_strings="<|endoftext|>"),
-                tokenizer=self.model_store["Processor"].tokenizer,
-            )
-
-        generated_tokens = output[0, inputs["input_ids"].size(1) :]
-        self.model_store["History"].append(generated_tokens)
-        generated_text = self.model_store["Processor"].tokenizer.decode(
-            generated_tokens, skip_special_tokens=True
-        )
-
         time.sleep(0.1)
         return generated_text
 

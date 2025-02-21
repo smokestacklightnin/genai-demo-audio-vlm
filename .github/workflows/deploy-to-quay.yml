@@ -47,7 +47,7 @@ jobs:
         run: |
           short_sha=$(git rev-parse --short ${{ github.sha }})
           if [[ "${{ steps.should-push.outputs.push-to-quay }}" == "true" ]]; then
-            echo "tag=quay.io/${{ var.QUAY_ACCOUNT_OWNER_ID }}/audiovlm-demo" >> $GITHUB_OUTPUT
+            echo "tag=quay.io/${{ vars.QUAY_ACCOUNT_OWNER_ID }}/audiovlm-demo" >> $GITHUB_OUTPUT
           else
             echo "tag=audiovlm-demo" >> $GITHUB_OUTPUT
           fi

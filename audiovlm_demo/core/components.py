@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import gc
 import io
+import os
 import time
 from pathlib import Path
 from typing import Annotated, Any
@@ -53,6 +54,7 @@ class AudioVLM:
     def __init__(self, *, config: Config, model_store: dict | None = None):
         self.config = config
         model_store_keys = {"Loaded", "History", "Model", "Processor"}
+        self.api_secrets = {}
         if model_store is not None:
             if not model_store_keys <= model_store.keys():
                 raise ValueError(
@@ -89,19 +91,19 @@ class AudioVLM:
 
         match model_selection:
             case "Molmo-7B-D-0924":
-                model_id_or_path = self.molmo_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path,
-                    trust_remote_code=True,
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                )
-                self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                    model_id_or_path,
-                    trust_remote_code=True,
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                )
+                # model_id_or_path = self.molmo_model_id
+                # self.model_store["Processor"] = AutoProcessor.from_pretrained(
+                #     model_id_or_path,
+                #     trust_remote_code=True,
+                #     torch_dtype=torch.bfloat16,
+                #     device_map="auto",
+                # )
+                # self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
+                #     model_id_or_path,
+                #     trust_remote_code=True,
+                #     torch_dtype=torch.bfloat16,
+                #     device_map="auto",
+                # )
                 self.model_store["Loaded"] = True
             case "Molmo-7B-D-0924-4bit":
                 model_id_or_path = self.molmo_model_id

@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import base64
 import gc
 import io
 import time
@@ -14,7 +16,6 @@ from transformers import (
     AutoModelForCausalLM,
     AutoProcessor,
     BitsAndBytesConfig,
-    GenerationConfig,
     Qwen2AudioForConditionalGeneration,
 )
 
@@ -222,6 +223,8 @@ class AudioVLM:
             "User",
             "Assistant",
         )
+
+        image = base64.b64encode(image).decode("utf8")
 
         time.sleep(0.1)
         return generated_text

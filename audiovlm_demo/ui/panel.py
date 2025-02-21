@@ -28,7 +28,12 @@ class AudioVLMPanel:
 
         self.toggle_group = pn.widgets.ToggleGroup(
             name="Model Select",
-            options=["Molmo-7B-D-0924", "Molmo-7B-D-0924-4bit", "Aria", "Qwen2-Audio"],
+            options=[
+                "Molmo-7B-D-0924",
+                "Molmo-7B-D-0924-4bit",
+                # "Aria",
+                # "Qwen2-Audio",
+            ],
             behavior="radio",
         )
         self.load_button = pn.widgets.Button(name="Load Model", button_type="primary")

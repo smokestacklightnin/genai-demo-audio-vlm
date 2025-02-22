@@ -99,8 +99,8 @@ class AudioVLM:
 
         match model_selection:
             case "Molmo-7B-D-0924":
-                if "molmo" not in self.api_keys:
-                    self.api_keys["molmo"] = os.environ.get("MOLMO_API_KEY")
+                if "runpod" not in self.api_keys:
+                    self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
                 if "molmo" not in self.api_endpoint_ids:
                     self.api_endpoint_ids["molmo"] = os.environ.get("MOLMO_ENDPOINT_ID")
 
@@ -256,7 +256,7 @@ class AudioVLM:
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_keys['molmo']}",
+            "Authorization": f"Bearer {self.api_keys['runpod']}",
         }
 
         response = httpx.post(

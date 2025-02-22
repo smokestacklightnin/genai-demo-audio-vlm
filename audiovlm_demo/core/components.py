@@ -3,11 +3,13 @@ from __future__ import annotations
 import base64
 import gc
 import io
+import mimetypes
 import os
 import time
 from pathlib import Path
 from typing import Annotated, Any
 
+import httpx
 import librosa
 import tomlkit
 import torch
@@ -50,6 +52,8 @@ class AudioVLM:
     molmo_model_id: str = "allenai/Molmo-7B-D-0924"
     aria_model_id: str = "rhymes-ai/Aria"
     qwen_audio_model_id: str = "Qwen/Qwen2-Audio-7B-Instruct"
+
+    runpod_endpoint_url: str = "https://api.runpod.ai/v2/{endpoint_id}/run"
 
     def __init__(self, *, config: Config, model_store: dict | None = None):
         self.config = config
@@ -232,7 +236,32 @@ class AudioVLM:
             "Assistant",
         )
 
+        with io.BytesIO() as output:
+            image.save(
+                output,
+                format=mimetypes.guess_type(file_name)[0].split("/")[-1],
+            )
+            image = output.getvalue()
         image = base64.b64encode(image).decode("utf8")
+
+        data = {
+            "input": {
+                "image": image,
+                "text": prompt_full,
+            }
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_keys['molmo']}",
+        }
+
+        response = httpx.post(
+            self.runpod_endpoint_url.format(endpoint_id=self.api_endpoint_ids["molmo"]),
+            headers=headers,
+            json=data,
+        )
+        response.raise_for_status()
 
         time.sleep(0.1)
         return generated_text

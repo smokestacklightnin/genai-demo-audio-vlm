@@ -4,3 +4,6 @@ services:
     restart: unless-stopped
     ports:
       - "5006:5006"
+    environment:
+      - MOLMO_ENDPOINT_ID=${MOLMO_ENDPOINT_ID}
+      - MOLMO_API_KEY=${MOLMO_API_KEY}

@@ -22,7 +22,7 @@ from transformers import (
     Qwen2AudioForConditionalGeneration,
 )
 
-from audiovlm_demo.core.utils import resolve_path
+from audiovlm_demo.core.utils import encode_file_to_data_url, resolve_path
 
 _ResolvedPath = Annotated[Path, AfterValidator(resolve_path)]
 
@@ -54,6 +54,9 @@ class AudioVLM:
     qwen_audio_model_id: str = "Qwen/Qwen2-Audio-7B-Instruct"
 
     runpod_endpoint_url: str = "https://api.runpod.ai/v2/{endpoint_id}/run"
+    runpod_status_url: str = (
+        "https://api.runpod.ai/v2/{endpoint_id}/status/{request_id}"
+    )
 
     def __init__(self, *, config: Config, model_store: dict | None = None):
         self.config = config
@@ -263,7 +266,26 @@ class AudioVLM:
         )
         response.raise_for_status()
 
-        time.sleep(0.1)
+        request_id = response.json()["id"]
+
+        while (
+            status_response := httpx.post(
+                self.runpod_status_url.format(
+                    endpoint_id=self.api_endpoint_ids["molmo"],
+                    request_id=request_id,
+                ),
+                headers=headers,
+            )
+        ).json()["status"] in {"IN_QUEUE", "IN_PROGRESS"}:
+            time.sleep(0.1)
+
+        if status_response.json()["status"] == "COMPLETED":
+            generated_text = status_response.json()["output"]
+        else:
+            raise RuntimeError(
+                f"The prompt was unsuccessful. The following is the response: {status_response.json()}"
+            )
+
         return generated_text
 
     # TODO: Add type annotations

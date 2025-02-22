@@ -118,30 +118,30 @@ class AudioVLM:
                 #     device_map="auto",
                 # )
                 self.model_store["Loaded"] = True
-            case "Molmo-7B-D-0924-4bit":
-                model_id_or_path = self.molmo_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path,
-                    trust_remote_code=True,
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                )
-                arguments = {
-                    "device_map": "auto",
-                    "torch_dtype": "auto",
-                    "trust_remote_code": True,
-                }
-                quantization_config = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_quant_type="fp4",  # or nf4
-                    bnb_4bit_use_double_quant=False,
-                )
-                arguments["quantization_config"] = quantization_config
-                self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                    model_id_or_path,
-                    **arguments,
-                )
-                self.model_store["Loaded"] = True
+            # case "Molmo-7B-D-0924-4bit":
+            #     model_id_or_path = self.molmo_model_id
+            #     self.model_store["Processor"] = AutoProcessor.from_pretrained(
+            #         model_id_or_path,
+            #         trust_remote_code=True,
+            #         torch_dtype=torch.bfloat16,
+            #         device_map="auto",
+            #     )
+            #     arguments = {
+            #         "device_map": "auto",
+            #         "torch_dtype": "auto",
+            #         "trust_remote_code": True,
+            #     }
+            #     quantization_config = BitsAndBytesConfig(
+            #         load_in_4bit=True,
+            #         bnb_4bit_quant_type="fp4",  # or nf4
+            #         bnb_4bit_use_double_quant=False,
+            #     )
+            #     arguments["quantization_config"] = quantization_config
+            #     self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
+            #         model_id_or_path,
+            #         **arguments,
+            #     )
+            #     self.model_store["Loaded"] = True
             case "Aria":
                 model_id_or_path = self.aria_model_id
                 self.model_store["Processor"] = AutoProcessor.from_pretrained(

@@ -4,15 +4,6 @@ services:
     restart: unless-stopped
     ports:
       - "5006:5006"
-    volumes:
-      - model-data:/home/mambauser/.cache
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
-volumes:
-  model-data:
+    environment:
+      - MOLMO_ENDPOINT_ID=${MOLMO_ENDPOINT_ID}
+      - RUNPOD_API_KEY=${RUNPOD_API_KEY}

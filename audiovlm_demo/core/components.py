@@ -1,10 +1,15 @@
 from __future__ import annotations
+
+import base64
 import gc
 import io
+import mimetypes
+import os
 import time
 from pathlib import Path
 from typing import Annotated, Any
 
+import httpx
 import librosa
 import tomlkit
 import torch
@@ -14,11 +19,10 @@ from transformers import (
     AutoModelForCausalLM,
     AutoProcessor,
     BitsAndBytesConfig,
-    GenerationConfig,
     Qwen2AudioForConditionalGeneration,
 )
 
-from audiovlm_demo.core.utils import resolve_path
+from audiovlm_demo.core.utils import encode_file_to_data_url, resolve_path
 
 _ResolvedPath = Annotated[Path, AfterValidator(resolve_path)]
 
@@ -49,9 +53,16 @@ class AudioVLM:
     aria_model_id: str = "rhymes-ai/Aria"
     qwen_audio_model_id: str = "Qwen/Qwen2-Audio-7B-Instruct"
 
+    runpod_endpoint_url: str = "https://api.runpod.ai/v2/{endpoint_id}/run"
+    runpod_status_url: str = (
+        "https://api.runpod.ai/v2/{endpoint_id}/status/{request_id}"
+    )
+
     def __init__(self, *, config: Config, model_store: dict | None = None):
         self.config = config
         model_store_keys = {"Loaded", "History", "Model", "Processor"}
+        self.api_keys = {}
+        self.api_endpoint_ids = {}
         if model_store is not None:
             if not model_store_keys <= model_store.keys():
                 raise ValueError(
@@ -88,19 +99,24 @@ class AudioVLM:
 
         match model_selection:
             case "Molmo-7B-D-0924":
-                model_id_or_path = self.molmo_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path,
-                    trust_remote_code=True,
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                )
-                self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                    model_id_or_path,
-                    trust_remote_code=True,
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                )
+                if "runpod" not in self.api_keys:
+                    self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
+                if "molmo" not in self.api_endpoint_ids:
+                    self.api_endpoint_ids["molmo"] = os.environ.get("MOLMO_ENDPOINT_ID")
+
+                # model_id_or_path = self.molmo_model_id
+                # self.model_store["Processor"] = AutoProcessor.from_pretrained(
+                #     model_id_or_path,
+                #     trust_remote_code=True,
+                #     torch_dtype=torch.bfloat16,
+                #     device_map="auto",
+                # )
+                # self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
+                #     model_id_or_path,
+                #     trust_remote_code=True,
+                #     torch_dtype=torch.bfloat16,
+                #     device_map="auto",
+                # )
                 self.model_store["Loaded"] = True
             case "Molmo-7B-D-0924-4bit":
                 model_id_or_path = self.molmo_model_id
@@ -216,38 +232,64 @@ class AudioVLM:
         return "".join(texts)
 
     # TODO: Add type annotations
-    def molmo_callback(self, *, image, chat_history):
+    def molmo_callback(self, *, file_name, image, chat_history):
         prompt_full = self.compile_prompt(
             chat_history,
             "User",
             "Assistant",
         )
 
-        inputs = self.model_store["Processor"].process(images=[image], text=prompt_full)
+        with io.BytesIO() as output:
+            image.save(
+                output,
+                format=mimetypes.guess_type(file_name)[0].split("/")[-1],
+            )
+            image = output.getvalue()
+        image = base64.b64encode(image).decode("utf8")
 
-        inputs = {
-            k: v.to(self.model_store["Model"].device).unsqueeze(0)
-            for k, v in inputs.items()
+        data = {
+            "input": {
+                "image": image,
+                "text": prompt_full,
+            }
         }
 
-        with torch.autocast(device_type="cuda", enabled=True, dtype=torch.bfloat16):
-            output = self.model_store["Model"].generate_from_batch(
-                inputs,
-                GenerationConfig(max_new_tokens=1250, stop_strings="<|endoftext|>"),
-                tokenizer=self.model_store["Processor"].tokenizer,
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_keys['runpod']}",
+        }
+
+        response = httpx.post(
+            self.runpod_endpoint_url.format(endpoint_id=self.api_endpoint_ids["molmo"]),
+            headers=headers,
+            json=data,
+        )
+        response.raise_for_status()
+
+        request_id = response.json()["id"]
+
+        while (
+            status_response := httpx.post(
+                self.runpod_status_url.format(
+                    endpoint_id=self.api_endpoint_ids["molmo"],
+                    request_id=request_id,
+                ),
+                headers=headers,
+            )
+        ).json()["status"] in {"IN_QUEUE", "IN_PROGRESS"}:
+            time.sleep(0.1)
+
+        if status_response.json()["status"] == "COMPLETED":
+            generated_text = status_response.json()["output"]
+        else:
+            raise RuntimeError(
+                f"The prompt was unsuccessful. The following is the response: {status_response.json()}"
             )
 
-        generated_tokens = output[0, inputs["input_ids"].size(1) :]
-        self.model_store["History"].append(generated_tokens)
-        generated_text = self.model_store["Processor"].tokenizer.decode(
-            generated_tokens, skip_special_tokens=True
-        )
-
-        time.sleep(0.1)
         return generated_text
 
     # TODO: Add type annotations
-    def aria_callback(self, *, image, chat_history):
+    def aria_callback(self, *, file_name, image, chat_history):
         messages = self.engine.compile_prompt_gguf(
             chat_history,
             "User",
@@ -284,7 +326,7 @@ class AudioVLM:
         return result
 
     # TODO: Add type annotations
-    def qwen_callback(self, *, audio_file_content, chat_history):
+    def qwen_callback(self, *, file_name, audio_file_content, chat_history):
         messages = chat_history[-1]
         if messages["role"] == "User":
             text_input = messages["content"]

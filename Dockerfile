@@ -1,4 +1,4 @@
-FROM mambaorg/micromamba:cuda12.6.3-ubuntu24.04
+FROM mambaorg/micromamba:debian12-slim
 
 WORKDIR /app
 

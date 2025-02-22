@@ -103,20 +103,6 @@ class AudioVLM:
                     self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
                 if "molmo" not in self.api_endpoint_ids:
                     self.api_endpoint_ids["molmo"] = os.environ.get("MOLMO_ENDPOINT_ID")
-
-                # model_id_or_path = self.molmo_model_id
-                # self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                #     model_id_or_path,
-                #     trust_remote_code=True,
-                #     torch_dtype=torch.bfloat16,
-                #     device_map="auto",
-                # )
-                # self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                #     model_id_or_path,
-                #     trust_remote_code=True,
-                #     torch_dtype=torch.bfloat16,
-                #     device_map="auto",
-                # )
                 self.model_store["Loaded"] = True
             # case "Molmo-7B-D-0924-4bit":
             #     model_id_or_path = self.molmo_model_id

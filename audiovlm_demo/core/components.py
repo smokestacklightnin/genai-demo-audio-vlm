@@ -225,7 +225,7 @@ class AudioVLM:
         return "".join(texts)
 
     # TODO: Add type annotations
-    def molmo_callback(self, *, image, chat_history):
+    def molmo_callback(self, *, file_name, image, chat_history):
         prompt_full = self.compile_prompt(
             chat_history,
             "User",
@@ -238,7 +238,7 @@ class AudioVLM:
         return generated_text
 
     # TODO: Add type annotations
-    def aria_callback(self, *, image, chat_history):
+    def aria_callback(self, *, file_name, image, chat_history):
         messages = self.engine.compile_prompt_gguf(
             chat_history,
             "User",
@@ -275,7 +275,7 @@ class AudioVLM:
         return result
 
     # TODO: Add type annotations
-    def qwen_callback(self, *, audio_file_content, chat_history):
+    def qwen_callback(self, *, file_name, audio_file_content, chat_history):
         messages = chat_history[-1]
         if messages["role"] == "User":
             text_input = messages["content"]

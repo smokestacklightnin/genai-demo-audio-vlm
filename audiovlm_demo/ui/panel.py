@@ -30,7 +30,7 @@ class AudioVLMPanel:
             name="Model Select",
             options=[
                 "Molmo-7B-D-0924",
-                "Molmo-7B-D-0924-4bit",
+                # "Molmo-7B-D-0924-4bit",
                 # "Aria",
                 # "Qwen2-Audio",
             ],

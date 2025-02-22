@@ -182,7 +182,8 @@ class AudioVLMPanel:
         ):
             file_name, file_content = next(iter(file_dropper.value.items()))
             image = Image.open(io.BytesIO(file_content))
-            return image
+
+            return file_name, image
         return "Please upload an image using the file dropper in order to talk over that image."
 
     # TODO: Improve type annotation
@@ -192,8 +193,9 @@ class AudioVLMPanel:
             file_dropper.value
             and next(iter(file_dropper.mime_type.values())).split("/")[0] == "audio"
         ):
-            _, audio_file_content = next(iter(file_dropper.value.items()))
-            return audio_file_content
+            file_name, audio_file_content = next(iter(file_dropper.value.items()))
+
+            return file_name, audio_file_content
         else:
             return "Please attach an audio sample of the appropriate file format"
 
@@ -219,7 +221,7 @@ class AudioVLMPanel:
             null_and_void = instance.objects.pop()  # noqa: F841
 
         if self.toggle_group.value in ["Molmo-7B-D-0924", "Molmo-7B-D-0924-4bit"]:
-            image_or_error_message = AudioVLMPanel.validate_image_input(
+            file_name, image_or_error_message = AudioVLMPanel.validate_image_input(
                 self.file_dropper
             )
             if isinstance(image_or_error_message, str):
@@ -229,6 +231,7 @@ class AudioVLMPanel:
                 del image_or_error_message
 
             generated_text = self.engine.molmo_callback(
+                file_name=file_name,
                 image=image,
                 chat_history=self.build_chat_history(instance),
             )
@@ -237,7 +240,7 @@ class AudioVLMPanel:
                 self.overlay_points(points_data)
             return generated_text
         elif self.toggle_group.value == "Aria":
-            image_or_error_message = AudioVLMPanel.validate_image_input(
+            file_name, image_or_error_message = AudioVLMPanel.validate_image_input(
                 self.file_dropper
             )
             if isinstance(image_or_error_message, str):
@@ -247,12 +250,13 @@ class AudioVLMPanel:
                 del image_or_error_message
 
             result = self.engine.aria_callback(
+                file_name=file_name,
                 image=image,
                 chat_history=self.build_chat_history(instance),
             )
             return result
         elif self.toggle_group.value == "Qwen2-Audio":
-            audio_or_error_message = AudioVLMPanel.validate_audio_input(
+            file_name, audio_or_error_message = AudioVLMPanel.validate_audio_input(
                 self.file_dropper
             )
             if isinstance(audio_or_error_message, str):
@@ -260,8 +264,9 @@ class AudioVLMPanel:
             else:
                 audio_file_content = audio_or_error_message
                 del audio_or_error_message
-            response = self.engine.aria_callback(
-                audio_file_content,
+            response = self.engine.qwen_callback(
+                file_name=file_name,
+                audio_file_content=audio_or_error_message,
                 chat_history=self.build_chat_history(instance),
             )
             return response

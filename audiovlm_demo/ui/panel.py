@@ -266,7 +266,7 @@ class AudioVLMPanel:
                 del audio_or_error_message
             response = self.engine.qwen_callback(
                 file_name=file_name,
-                audio_file_content=audio_or_error_message,
+                audio_file_content=audio_file_content,
                 chat_history=self.build_chat_history(instance),
             )
             return response

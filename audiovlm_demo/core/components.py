@@ -269,7 +269,7 @@ class AudioVLM:
 
     # TODO: Add type annotations
     def aria_callback(self, *, file_name, image, chat_history):
-        messages = self.engine.compile_prompt_gguf(
+        messages = self.compile_prompt_gguf(
             chat_history,
             "User",
             "Assistant",
@@ -283,7 +283,14 @@ class AudioVLM:
             image = output.getvalue()
         image = base64.b64encode(image).decode("utf8")
 
-        return result
+        data = {
+            "input": {
+                "image": image,
+                "text": messages,
+            },
+        }
+
+        return "Needs more reverb."
 
     # TODO: Add type annotations
     def qwen_callback(self, *, file_name, audio_file_content, chat_history):

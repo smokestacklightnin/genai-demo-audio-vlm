@@ -97,10 +97,11 @@ class AudioVLM:
         if self.model_store["Model"]:
             self.model_cleanup()
 
+        if "runpod" not in self.api_keys:
+            self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
+
         match model_selection:
             case "Molmo-7B-D-0924":
-                if "runpod" not in self.api_keys:
-                    self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
                 if "molmo" not in self.api_endpoint_ids:
                     self.api_endpoint_ids["molmo"] = os.environ.get("MOLMO_ENDPOINT_ID")
                 self.model_store["Loaded"] = True
@@ -129,16 +130,8 @@ class AudioVLM:
             #     )
             #     self.model_store["Loaded"] = True
             case "Aria":
-                model_id_or_path = self.aria_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path, trust_remote_code=True
-                )
-                self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                    model_id_or_path,
-                    device_map="auto",
-                    torch_dtype=torch.bfloat16,
-                    trust_remote_code=True,
-                )
+                if "aria" not in self.api_endpoint_ids:
+                    self.api_endpoint_ids["aria"] = os.environ.get("ARIA_ENDPOINT_ID")
                 self.model_store["Loaded"] = True
             case "Qwen2-Audio":
                 model_id_or_path = self.qwen_audio_model_id

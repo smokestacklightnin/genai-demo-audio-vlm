@@ -291,7 +291,7 @@ class AudioVLM:
         data = {
             "input": {
                 "image": image,
-                "text": messages,
+                "messages": messages,
             },
         }
 
@@ -300,7 +300,12 @@ class AudioVLM:
             "Authorization": f"Bearer {self.api_keys['runpod']}",
         }
 
-        return "Needs more reverb."
+        generated_text = self.send_receive_requests(
+            endpoint_id=self.api_endpoint_ids["aria"],
+            headers=headers,
+            data=data,
+        )
+        return generated_text
 
     # TODO: Add type annotations
     def qwen_callback(self, *, file_name, audio_file_content, chat_history):

@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import gc
 import io
-import mimetypes
 import os
 import time
 from pathlib import Path
@@ -16,13 +15,11 @@ import torch
 from pydantic import AfterValidator
 from pydantic_settings import BaseSettings
 from transformers import (
-    AutoModelForCausalLM,
     AutoProcessor,
-    BitsAndBytesConfig,
     Qwen2AudioForConditionalGeneration,
 )
 
-from audiovlm_demo.core.utils import encode_file_to_data_url, resolve_path
+from audiovlm_demo.core.utils import resolve_path
 
 _ResolvedPath = Annotated[Path, AfterValidator(resolve_path)]
 
@@ -210,6 +207,35 @@ class AudioVLM:
                 pass
         return "".join(texts)
 
+    def send_receive_requests(self, *, endpoint_id: str, headers: dict, data: dict):
+        response = httpx.post(
+            self.runpod_endpoint_url.format(endpoint_id=endpoint_id),
+            headers=headers,
+            json=data,
+        )
+        response.raise_for_status()
+
+        request_id = response.json()["id"]
+
+        while (
+            status_response := httpx.post(
+                self.runpod_status_url.format(
+                    endpoint_id=endpoint_id,
+                    request_id=request_id,
+                ),
+                headers=headers,
+            )
+        ).json()["status"] in {"IN_QUEUE", "IN_PROGRESS"}:
+            time.sleep(0.1)
+
+        if status_response.json()["status"] == "COMPLETED":
+            generated_text = status_response.json()["output"]
+        else:
+            raise RuntimeError(
+                f"The prompt was unsuccessful. The following is the response: {status_response.json()}"
+            )
+        return generated_text
+
     # TODO: Add type annotations
     def molmo_callback(self, *, file_name, image, chat_history):
         prompt_full = self.compile_prompt(
@@ -238,32 +264,11 @@ class AudioVLM:
             "Authorization": f"Bearer {self.api_keys['runpod']}",
         }
 
-        response = httpx.post(
-            self.runpod_endpoint_url.format(endpoint_id=self.api_endpoint_ids["molmo"]),
+        generated_text = self.send_receive_requests(
+            endpoint_id=self.api_endpoint_ids["molmo"],
             headers=headers,
-            json=data,
+            data=data,
         )
-        response.raise_for_status()
-
-        request_id = response.json()["id"]
-
-        while (
-            status_response := httpx.post(
-                self.runpod_status_url.format(
-                    endpoint_id=self.api_endpoint_ids["molmo"],
-                    request_id=request_id,
-                ),
-                headers=headers,
-            )
-        ).json()["status"] in {"IN_QUEUE", "IN_PROGRESS"}:
-            time.sleep(0.1)
-
-        if status_response.json()["status"] == "COMPLETED":
-            generated_text = status_response.json()["output"]
-        else:
-            raise RuntimeError(
-                f"The prompt was unsuccessful. The following is the response: {status_response.json()}"
-            )
 
         return generated_text
 

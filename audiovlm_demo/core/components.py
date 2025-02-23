@@ -290,6 +290,11 @@ class AudioVLM:
             },
         }
 
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_keys['runpod']}",
+        }
+
         return "Needs more reverb."
 
     # TODO: Add type annotations

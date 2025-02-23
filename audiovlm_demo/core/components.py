@@ -9,15 +9,10 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
-import librosa
 import tomlkit
 import torch
 from pydantic import AfterValidator
 from pydantic_settings import BaseSettings
-from transformers import (
-    AutoProcessor,
-    Qwen2AudioForConditionalGeneration,
-)
 
 from audiovlm_demo.core.utils import resolve_path
 
@@ -131,15 +126,8 @@ class AudioVLM:
                     self.api_endpoint_ids["aria"] = os.environ.get("ARIA_ENDPOINT_ID")
                 self.model_store["Loaded"] = True
             case "Qwen2-Audio":
-                model_id_or_path = self.qwen_audio_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path
-                )
-                self.model_store["Model"] = (
-                    Qwen2AudioForConditionalGeneration.from_pretrained(
-                        model_id_or_path, device_map="auto"
-                    )
-                )
+                if "qwen" not in self.api_endpoint_ids:
+                    self.api_endpoint_ids["qwen"] = os.environ.get("QWEN_ENDPOINT_ID")
                 self.model_store["Loaded"] = True
             case _:
                 pass
@@ -309,57 +297,34 @@ class AudioVLM:
 
     # TODO: Add type annotations
     def qwen_callback(self, *, file_name, audio_file_content, chat_history):
-        messages = chat_history[-1]
-        if messages["role"] == "User":
-            text_input = messages["content"]
-        else:
-            return "Error handling input content - please restart application and try again."
+        audio_file_content = base64.b64encode(audio_file_content).decode("utf8")
 
-        conversation = [
-            {"role": "system", "content": "You are a helpful assistant."},
+        messages = [{"role": "system", "content": "You are a helpful assistant."}] + [
             {
-                "role": "user",
-                "content": [
-                    {"type": "audio", "audio_url": "Filler.wav"},
-                    {"type": "text", "text": text_input},
-                ],
-            },
+                "role": utterance["role"].lower(),
+                "content": {
+                    "type": "text",
+                    "text": utterance["content"],
+                },
+            }
+            for utterance in chat_history
         ]
-        text = self.engine.model_store["Processor"].apply_chat_template(
-            conversation, add_generation_prompt=True, tokenize=False
-        )
-        audios = []
-        for message in conversation:
-            if isinstance(message["content"], list):
-                for ele in message["content"]:
-                    if ele["type"] == "audio":
-                        try:
-                            audios.append(
-                                librosa.load(
-                                    io.BytesIO(audio_file_content),
-                                    sr=self.engine.model_store[
-                                        "Processor"
-                                    ].feature_extractor.sampling_rate,
-                                )[0]
-                            )
-                        except:  # noqa: E722
-                            return "Error loading audio file, please change file dropper content to appropriate file format"
 
-        inputs = self.engine.model_store["Processor"](
-            text=text, audios=audios, return_tensors="pt", padding=True
-        )
-        inputs.input_ids = inputs.input_ids.to("cuda")
-        inputs["input_ids"] = inputs["input_ids"].to("cuda")
+        data = {
+            "input": {
+                "audio_content": audio_file_content,
+                "messages": messages,
+            },
+        }
 
-        generate_ids = self.engine.model_store["Model"].generate(
-            **inputs, max_length=256
-        )
-        generate_ids = generate_ids[:, inputs.input_ids.size(1) :]
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_keys['runpod']}",
+        }
 
-        response = self.engine.model_store["Processor"].batch_decode(
-            generate_ids,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=False,
-        )[0]
-        time.sleep(0.1)
-        return response
+        generated_text = self.send_receive_requests(
+            endpoint_id=self.api_endpoint_ids["qwen"],
+            headers=headers,
+            data=data,
+        )
+        return generated_text

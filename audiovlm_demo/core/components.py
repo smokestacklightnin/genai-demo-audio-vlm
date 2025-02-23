@@ -228,7 +228,7 @@ class AudioVLM:
         with io.BytesIO() as output:
             image.save(
                 output,
-                format=mimetypes.guess_type(file_name)[0].split("/")[-1],
+                format=image.format,
             )
             image = output.getvalue()
         image = base64.b64encode(image).decode("utf8")

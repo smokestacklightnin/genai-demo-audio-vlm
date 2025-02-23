@@ -31,7 +31,7 @@ class AudioVLMPanel:
             options=[
                 "Molmo-7B-D-0924",
                 # "Molmo-7B-D-0924-4bit",
-                # "Aria",
+                "Aria",
                 # "Qwen2-Audio",
             ],
             behavior="radio",

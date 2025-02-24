@@ -11,7 +11,6 @@ import httpx
 import torch
 
 
-
 class AudioVLM:
     molmo_model_id: str = "allenai/Molmo-7B-D-0924"
     aria_model_id: str = "rhymes-ai/Aria"

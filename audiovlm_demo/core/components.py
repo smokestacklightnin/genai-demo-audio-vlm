@@ -3,49 +3,11 @@ from __future__ import annotations
 import base64
 import gc
 import io
-import mimetypes
 import os
 import time
-from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import httpx
-import librosa
-import tomlkit
-import torch
-from pydantic import AfterValidator
-from pydantic_settings import BaseSettings
-from transformers import (
-    AutoModelForCausalLM,
-    AutoProcessor,
-    BitsAndBytesConfig,
-    Qwen2AudioForConditionalGeneration,
-)
-
-from audiovlm_demo.core.utils import encode_file_to_data_url, resolve_path
-
-_ResolvedPath = Annotated[Path, AfterValidator(resolve_path)]
-
-
-class Config(BaseSettings):
-    """
-    Class to store configuration for the demo.
-
-    Includes paths to downloaded models, among other thnigs.
-    """
-
-    model_path: _ResolvedPath
-    aria_model_path: _ResolvedPath
-    qwen_audio_model_path: _ResolvedPath
-
-    @classmethod
-    def from_file(cls, path: str | Path) -> Config:
-        path = resolve_path(path)
-        if not path.is_file():
-            raise FileNotFoundError(f"{path} does not exist.")
-
-        with open(path) as file:
-            return cls.model_validate(tomlkit.load(file).unwrap())
 
 
 class AudioVLM:
@@ -58,8 +20,7 @@ class AudioVLM:
         "https://api.runpod.ai/v2/{endpoint_id}/status/{request_id}"
     )
 
-    def __init__(self, *, config: Config, model_store: dict | None = None):
-        self.config = config
+    def __init__(self, *, model_store: dict | None = None):
         model_store_keys = {"Loaded", "History", "Model", "Processor"}
         self.api_keys = {}
         self.api_endpoint_ids = {}
@@ -86,7 +47,6 @@ class AudioVLM:
             del self.model_store["Model"]
             del self.model_store["Processor"]
             gc.collect()
-            torch.cuda.empty_cache()
             self.model_store["Model"] = None
             self.model_store["Processor"] = None
             self.model_store["Loaded"] = False
@@ -97,73 +57,45 @@ class AudioVLM:
         if self.model_store["Model"]:
             self.model_cleanup()
 
+        if "runpod" not in self.api_keys:
+            self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
+
         match model_selection:
             case "Molmo-7B-D-0924":
-                if "runpod" not in self.api_keys:
-                    self.api_keys["runpod"] = os.environ.get("RUNPOD_API_KEY")
                 if "molmo" not in self.api_endpoint_ids:
                     self.api_endpoint_ids["molmo"] = os.environ.get("MOLMO_ENDPOINT_ID")
-
-                # model_id_or_path = self.molmo_model_id
-                # self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                #     model_id_or_path,
-                #     trust_remote_code=True,
-                #     torch_dtype=torch.bfloat16,
-                #     device_map="auto",
-                # )
-                # self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                #     model_id_or_path,
-                #     trust_remote_code=True,
-                #     torch_dtype=torch.bfloat16,
-                #     device_map="auto",
-                # )
                 self.model_store["Loaded"] = True
-            case "Molmo-7B-D-0924-4bit":
-                model_id_or_path = self.molmo_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path,
-                    trust_remote_code=True,
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                )
-                arguments = {
-                    "device_map": "auto",
-                    "torch_dtype": "auto",
-                    "trust_remote_code": True,
-                }
-                quantization_config = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_quant_type="fp4",  # or nf4
-                    bnb_4bit_use_double_quant=False,
-                )
-                arguments["quantization_config"] = quantization_config
-                self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                    model_id_or_path,
-                    **arguments,
-                )
-                self.model_store["Loaded"] = True
+            # case "Molmo-7B-D-0924-4bit":
+            #     model_id_or_path = self.molmo_model_id
+            #     self.model_store["Processor"] = AutoProcessor.from_pretrained(
+            #         model_id_or_path,
+            #         trust_remote_code=True,
+            #         torch_dtype=torch.bfloat16,
+            #         device_map="auto",
+            #     )
+            #     arguments = {
+            #         "device_map": "auto",
+            #         "torch_dtype": "auto",
+            #         "trust_remote_code": True,
+            #     }
+            #     quantization_config = BitsAndBytesConfig(
+            #         load_in_4bit=True,
+            #         bnb_4bit_quant_type="fp4",  # or nf4
+            #         bnb_4bit_use_double_quant=False,
+            #     )
+            #     arguments["quantization_config"] = quantization_config
+            #     self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
+            #         model_id_or_path,
+            #         **arguments,
+            #     )
+            #     self.model_store["Loaded"] = True
             case "Aria":
-                model_id_or_path = self.aria_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path, trust_remote_code=True
-                )
-                self.model_store["Model"] = AutoModelForCausalLM.from_pretrained(
-                    model_id_or_path,
-                    device_map="auto",
-                    torch_dtype=torch.bfloat16,
-                    trust_remote_code=True,
-                )
+                if "aria" not in self.api_endpoint_ids:
+                    self.api_endpoint_ids["aria"] = os.environ.get("ARIA_ENDPOINT_ID")
                 self.model_store["Loaded"] = True
             case "Qwen2-Audio":
-                model_id_or_path = self.qwen_audio_model_id
-                self.model_store["Processor"] = AutoProcessor.from_pretrained(
-                    model_id_or_path
-                )
-                self.model_store["Model"] = (
-                    Qwen2AudioForConditionalGeneration.from_pretrained(
-                        model_id_or_path, device_map="auto"
-                    )
-                )
+                if "qwen" not in self.api_endpoint_ids:
+                    self.api_endpoint_ids["qwen"] = os.environ.get("QWEN_ENDPOINT_ID")
                 self.model_store["Loaded"] = True
             case _:
                 pass
@@ -231,6 +163,35 @@ class AudioVLM:
                 pass
         return "".join(texts)
 
+    def send_receive_requests(self, *, endpoint_id: str, headers: dict, data: dict):
+        response = httpx.post(
+            self.runpod_endpoint_url.format(endpoint_id=endpoint_id),
+            headers=headers,
+            json=data,
+        )
+        response.raise_for_status()
+
+        request_id = response.json()["id"]
+
+        while (
+            status_response := httpx.post(
+                self.runpod_status_url.format(
+                    endpoint_id=endpoint_id,
+                    request_id=request_id,
+                ),
+                headers=headers,
+            )
+        ).json()["status"] in {"IN_QUEUE", "IN_PROGRESS"}:
+            time.sleep(0.1)
+
+        if status_response.json()["status"] == "COMPLETED":
+            generated_text = status_response.json()["output"]
+        else:
+            raise RuntimeError(
+                f"The prompt was unsuccessful. The following is the response: {status_response.json()}"
+            )
+        return generated_text
+
     # TODO: Add type annotations
     def molmo_callback(self, *, file_name, image, chat_history):
         prompt_full = self.compile_prompt(
@@ -242,7 +203,7 @@ class AudioVLM:
         with io.BytesIO() as output:
             image.save(
                 output,
-                format=mimetypes.guess_type(file_name)[0].split("/")[-1],
+                format=image.format,
             )
             image = output.getvalue()
         image = base64.b64encode(image).decode("utf8")
@@ -259,125 +220,82 @@ class AudioVLM:
             "Authorization": f"Bearer {self.api_keys['runpod']}",
         }
 
-        response = httpx.post(
-            self.runpod_endpoint_url.format(endpoint_id=self.api_endpoint_ids["molmo"]),
+        generated_text = self.send_receive_requests(
+            endpoint_id=self.api_endpoint_ids["molmo"],
             headers=headers,
-            json=data,
+            data=data,
         )
-        response.raise_for_status()
-
-        request_id = response.json()["id"]
-
-        while (
-            status_response := httpx.post(
-                self.runpod_status_url.format(
-                    endpoint_id=self.api_endpoint_ids["molmo"],
-                    request_id=request_id,
-                ),
-                headers=headers,
-            )
-        ).json()["status"] in {"IN_QUEUE", "IN_PROGRESS"}:
-            time.sleep(0.1)
-
-        if status_response.json()["status"] == "COMPLETED":
-            generated_text = status_response.json()["output"]
-        else:
-            raise RuntimeError(
-                f"The prompt was unsuccessful. The following is the response: {status_response.json()}"
-            )
 
         return generated_text
 
     # TODO: Add type annotations
     def aria_callback(self, *, file_name, image, chat_history):
-        messages = self.engine.compile_prompt_gguf(
+        messages = self.compile_prompt_gguf(
             chat_history,
             "User",
             "Assistant",
         )
-        text = self.engine.model_store["Processor"].apply_chat_template(
-            messages, add_generation_prompt=True
-        )
-        inputs = self.engine.model_store["Processor"](
-            text=text, images=image, return_tensors="pt"
-        )
-        inputs["pixel_values"] = inputs["pixel_values"].to(
-            self.engine.model_store["Model"].dtype
-        )
-        inputs = {
-            k: v.to(self.engine.model_store["Model"].device) for k, v in inputs.items()
+
+        with io.BytesIO() as output:
+            image.save(
+                output,
+                format=image.format,
+            )
+            image = output.getvalue()
+        image = base64.b64encode(image).decode("utf8")
+
+        data = {
+            "input": {
+                "image": image,
+                "messages": messages,
+            },
         }
 
-        with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
-            output = self.engine.model_store["Model"].generate(
-                **inputs,
-                max_new_tokens=500,
-                stop_strings=["<|im_end|>"],
-                tokenizer=self.engine.model_store["Processor"].tokenizer,
-                do_sample=True,
-                temperature=0.7,
-            )
-            output_ids = output[0][inputs["input_ids"].shape[1] :]
-            result = self.engine.model_store["Processor"].decode(
-                output_ids, skip_special_tokens=True
-            )
-            result = result.replace("<|im_end|>", "")
-        time.sleep(0.1)
-        return result
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_keys['runpod']}",
+        }
+
+        generated_text = self.send_receive_requests(
+            endpoint_id=self.api_endpoint_ids["aria"],
+            headers=headers,
+            data=data,
+        )
+        return generated_text
 
     # TODO: Add type annotations
     def qwen_callback(self, *, file_name, audio_file_content, chat_history):
-        messages = chat_history[-1]
-        if messages["role"] == "User":
-            text_input = messages["content"]
-        else:
-            return "Error handling input content - please restart application and try again."
+        audio_file_content = base64.b64encode(audio_file_content).decode("utf8")
 
-        conversation = [
-            {"role": "system", "content": "You are a helpful assistant."},
+        messages = [{"role": "system", "content": "You are a helpful assistant."}] + [
             {
-                "role": "user",
+                "role": utterance["role"].lower(),
                 "content": [
-                    {"type": "audio", "audio_url": "Filler.wav"},
-                    {"type": "text", "text": text_input},
+                    {"type": "audio", "audio_url": "filler.wav"},
+                    {
+                        "type": "text",
+                        "text": utterance["content"],
+                    },
                 ],
-            },
+            }
+            for utterance in chat_history
         ]
-        text = self.engine.model_store["Processor"].apply_chat_template(
-            conversation, add_generation_prompt=True, tokenize=False
-        )
-        audios = []
-        for message in conversation:
-            if isinstance(message["content"], list):
-                for ele in message["content"]:
-                    if ele["type"] == "audio":
-                        try:
-                            audios.append(
-                                librosa.load(
-                                    io.BytesIO(audio_file_content),
-                                    sr=self.engine.model_store[
-                                        "Processor"
-                                    ].feature_extractor.sampling_rate,
-                                )[0]
-                            )
-                        except:  # noqa: E722
-                            return "Error loading audio file, please change file dropper content to appropriate file format"
 
-        inputs = self.engine.model_store["Processor"](
-            text=text, audios=audios, return_tensors="pt", padding=True
-        )
-        inputs.input_ids = inputs.input_ids.to("cuda")
-        inputs["input_ids"] = inputs["input_ids"].to("cuda")
+        data = {
+            "input": {
+                "audio_content": audio_file_content,
+                "messages": messages,
+            },
+        }
 
-        generate_ids = self.engine.model_store["Model"].generate(
-            **inputs, max_length=256
-        )
-        generate_ids = generate_ids[:, inputs.input_ids.size(1) :]
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_keys['runpod']}",
+        }
 
-        response = self.engine.model_store["Processor"].batch_decode(
-            generate_ids,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=False,
-        )[0]
-        time.sleep(0.1)
-        return response
+        generated_text = self.send_receive_requests(
+            endpoint_id=self.api_endpoint_ids["qwen"],
+            headers=headers,
+            data=data,
+        )
+        return generated_text

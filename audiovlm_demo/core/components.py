@@ -5,16 +5,11 @@ import gc
 import io
 import os
 import time
-from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import httpx
-import tomlkit
 import torch
-from pydantic import AfterValidator
-from pydantic_settings import BaseSettings
 
-from audiovlm_demo.core.utils import resolve_path
 
 
 class AudioVLM:

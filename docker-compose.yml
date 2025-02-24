@@ -6,4 +6,6 @@ services:
       - "5006:5006"
     environment:
       - MOLMO_ENDPOINT_ID=${MOLMO_ENDPOINT_ID}
+      - ARIA_ENDPOINT_ID=${ARIA_ENDPOINT_ID}
+      - QWEN_ENDPOINT_ID=${QWEN_ENDPOINT_ID}
       - RUNPOD_API_KEY=${RUNPOD_API_KEY}

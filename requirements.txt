@@ -1,3 +1,4 @@
 httpx
 librosa
 panel
+pillow

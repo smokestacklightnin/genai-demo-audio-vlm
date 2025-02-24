@@ -8,7 +8,6 @@ import time
 from typing import Any
 
 import httpx
-import torch
 
 
 class AudioVLM:
@@ -48,7 +47,6 @@ class AudioVLM:
             del self.model_store["Model"]
             del self.model_store["Processor"]
             gc.collect()
-            torch.cuda.empty_cache()
             self.model_store["Model"] = None
             self.model_store["Processor"] = None
             self.model_store["Loaded"] = False

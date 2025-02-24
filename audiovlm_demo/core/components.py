@@ -302,10 +302,13 @@ class AudioVLM:
         messages = [{"role": "system", "content": "You are a helpful assistant."}] + [
             {
                 "role": utterance["role"].lower(),
-                "content": {
-                    "type": "text",
-                    "text": utterance["content"],
-                },
+                "content": [
+                    {"type": "audio", "audio_url": "filler.wav"},
+                    {
+                        "type": "text",
+                        "text": utterance["content"],
+                    },
+                ],
             }
             for utterance in chat_history
         ]

@@ -31,5 +31,6 @@ Repository = "https://github.com/Quansight/genai-demo-audio-vlm"
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit"
+    "pre-commit",
+    "watchfiles"
 ]

@@ -16,29 +16,6 @@ from pydantic_settings import BaseSettings
 
 from audiovlm_demo.core.utils import resolve_path
 
-_ResolvedPath = Annotated[Path, AfterValidator(resolve_path)]
-
-
-class Config(BaseSettings):
-    """
-    Class to store configuration for the demo.
-
-    Includes paths to downloaded models, among other thnigs.
-    """
-
-    model_path: _ResolvedPath
-    aria_model_path: _ResolvedPath
-    qwen_audio_model_path: _ResolvedPath
-
-    @classmethod
-    def from_file(cls, path: str | Path) -> Config:
-        path = resolve_path(path)
-        if not path.is_file():
-            raise FileNotFoundError(f"{path} does not exist.")
-
-        with open(path) as file:
-            return cls.model_validate(tomlkit.load(file).unwrap())
-
 
 class AudioVLM:
     molmo_model_id: str = "allenai/Molmo-7B-D-0924"
@@ -50,8 +27,7 @@ class AudioVLM:
         "https://api.runpod.ai/v2/{endpoint_id}/status/{request_id}"
     )
 
-    def __init__(self, *, config: Config, model_store: dict | None = None):
-        self.config = config
+    def __init__(self, *, model_store: dict | None = None):
         model_store_keys = {"Loaded", "History", "Model", "Processor"}
         self.api_keys = {}
         self.api_endpoint_ids = {}
